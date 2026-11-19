@@ -92,7 +92,7 @@ button {
 .app {
   max-width: 1160px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
+  padding: calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + 16px)
     calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 24px) calc(env(safe-area-inset-left) + 16px);
 }
 
