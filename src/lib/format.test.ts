@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { explainLevain, explainSplit } from './explain';
-import { formatNumber, parseDecimal, teaspoons, toInputText } from './format';
+import { formatNumber, parseDecimal, teaspoons, teaspoonsPlain, toInputText } from './format';
 import { compositionFromWeight, planLevain } from './sourdough';
 
 describe('parseDecimal', () => {
@@ -29,14 +29,20 @@ describe('formatting', () => {
 });
 
 describe('teaspoons', () => {
-  it('rounds salt grams to the nearest quarter teaspoon (6 g per tsp)', () => {
+  it('rounds salt grams to the nearest kitchen fraction (6 g per tsp)', () => {
     expect(teaspoons(6)).toBe('1 tsp');
     expect(teaspoons(12)).toBe('2 tsp');
     expect(teaspoons(11.2)).toBe('1¾ tsp');
-    expect(teaspoons(10)).toBe('1¾ tsp');
+    expect(teaspoons(10)).toBe('1⅔ tsp');
     expect(teaspoons(3)).toBe('½ tsp');
     expect(teaspoons(0.5)).toBe('< ¼ tsp');
     expect(teaspoons(0)).toBe('0 tsp');
+  });
+
+  it('has a plain-text version', () => {
+    expect(teaspoonsPlain(10)).toBe('1 2/3');
+    expect(teaspoonsPlain(6)).toBe('1');
+    expect(teaspoonsPlain(2)).toBe('1/3');
   });
 });
 

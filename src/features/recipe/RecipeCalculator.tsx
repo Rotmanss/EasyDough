@@ -20,6 +20,7 @@ import {
 import type { Explanation } from '../../lib/explain';
 import { formatNumber, grams, percent, teaspoons } from '../../lib/format';
 import { recipeReconciles, weighedTotal } from '../../lib/sourdough';
+import { CopyRecipeButton } from './CopyRecipeButton';
 import { ExtrasEditor } from './ExtrasEditor';
 import { FlourTypesEditor } from './FlourTypesEditor';
 import type { RecipePrefs } from './recipePrefs';
@@ -238,6 +239,8 @@ export function RecipeCalculator({ onOpenStarter }: { onOpenStarter: () => void 
                 </div>
               </div>
             )}
+
+            <CopyRecipeButton recipe={recipe} levainHydration={prefs.levainHydration} />
           </>
         )}
       </section>

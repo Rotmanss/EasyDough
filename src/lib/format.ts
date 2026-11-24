@@ -36,15 +36,47 @@ export const num = (n: number, decimals = 3) => formatNumber(n, decimals);
 /** Fine sea / table salt; coarse or kosher salt is lighter per spoon. */
 export const SALT_GRAMS_PER_TSP = 6;
 
-const QUARTERS = ['', '¼', '½', '¾'] as const;
+// Kitchen fractions: [value, display, plain text].
+const SPOON_FRACTIONS = [
+  [0, '', ''],
+  [1 / 4, '¼', '1/4'],
+  [1 / 3, '⅓', '1/3'],
+  [1 / 2, '½', '1/2'],
+  [2 / 3, '⅔', '2/3'],
+  [3 / 4, '¾', '3/4'],
+  [1, '', ''],
+] as const;
 
-/** Kitchen-spoon approximation rounded to the nearest ¼ tsp, e.g. "1¾ tsp". */
+/** Nearest whole + kitchen fraction (¼ ⅓ ½ ⅔ ¾); null when too small for ¼ tsp. */
+function spoonParts(g: number, gramsPerTsp: number): { whole: number; frac: number } | null {
+  const x = g / gramsPerTsp;
+  let whole = Math.floor(x);
+  let best = 0;
+  SPOON_FRACTIONS.forEach(([v], i) => {
+    if (Math.abs(x - whole - v) < Math.abs(x - whole - SPOON_FRACTIONS[best]![0])) best = i;
+  });
+  if (best === SPOON_FRACTIONS.length - 1) {
+    whole += 1;
+    best = 0;
+  }
+  return whole === 0 && best === 0 ? null : { whole, frac: best };
+}
+
+/** Kitchen-spoon approximation, e.g. "1⅔ tsp". */
 export function teaspoons(g: number, gramsPerTsp = SALT_GRAMS_PER_TSP): string {
   if (!Number.isFinite(g) || g <= 0) return '0 tsp';
-  const quarters = Math.round((g / gramsPerTsp) * 4);
-  if (quarters === 0) return '< ¼ tsp';
-  const whole = Math.floor(quarters / 4);
-  return `${whole > 0 ? whole : ''}${QUARTERS[quarters % 4]} tsp`;
+  const parts = spoonParts(g, gramsPerTsp);
+  if (!parts) return '< ¼ tsp';
+  return `${parts.whole > 0 ? parts.whole : ''}${SPOON_FRACTIONS[parts.frac]![1]} tsp`;
+}
+
+/** Same as teaspoons() in plain text, without the unit: "1 2/3". */
+export function teaspoonsPlain(g: number, gramsPerTsp = SALT_GRAMS_PER_TSP): string {
+  if (!Number.isFinite(g) || g <= 0) return '0';
+  const parts = spoonParts(g, gramsPerTsp);
+  if (!parts) return 'less than 1/4';
+  const frac = SPOON_FRACTIONS[parts.frac]![2];
+  return [parts.whole > 0 ? String(parts.whole) : '', frac].filter(Boolean).join(' ');
 }
 
 /** Value placed into an <input>: dot decimal, no grouping, up to 4 decimals. */

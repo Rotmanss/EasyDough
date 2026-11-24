@@ -4,97 +4,29 @@ import { UndoIcon } from '../../components/Icons';
 import { Issues } from '../../components/Issues';
 import { NumberField } from '../../components/NumberField';
 import { Stat } from '../../components/Stat';
-import { num, usePersistentState } from '../../hooks/usePersistentState';
+import { usePersistentState } from '../../hooks/usePersistentState';
 import { useRecipe } from '../../hooks/useRecipe';
 import { useStarter } from '../../hooks/useStarter';
 import { explainLevain, explainLevainSplit } from '../../lib/explain';
 import { formatNumber, grams, percent } from '../../lib/format';
-import {
-  type Composition,
-  type Issue,
-  MAX_HYDRATION,
-  TOLERANCE,
-  compositionFromWeight,
-  hydrationOf,
-  isValidAmount,
-  isValidHydration,
-  planLevain,
-  takePortion,
-  weightOf,
-} from '../../lib/sourdough';
-
-interface LevainPrefs {
-  useMyStarter: boolean;
-  /** Grams of starter taken from the fridge jar. */
-  seed: number;
-  manualHydration: number;
-  syncWithRecipe: boolean;
-  forDough: number;
-  levainHydration: number;
-  backToFridge: number;
-  useFlourRatio: boolean;
-  flourRatio: number;
-}
-
-function parseLevainPrefs(raw: unknown): LevainPrefs {
-  const r = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
-  return {
-    useMyStarter: r.useMyStarter !== false,
-    seed: num(r.seed, 50),
-    manualHydration: num(r.manualHydration, 70),
-    syncWithRecipe: r.syncWithRecipe !== false,
-    forDough: num(r.forDough, 120),
-    levainHydration: num(r.levainHydration, 70),
-    backToFridge: num(r.backToFridge, 50),
-    useFlourRatio: r.useFlourRatio === true,
-    flourRatio: num(r.flourRatio, 2),
-  };
-}
-
-const INVALID: Composition = { flour: NaN, water: NaN };
+import { TOLERANCE, hydrationOf, isValidHydration, weightOf } from '../../lib/sourdough';
+import { LEVAIN_STORAGE_KEY, type LevainPrefs, computeLevain, parseLevainPrefs } from './levainSetup';
 
 export function LevainBuilder() {
   const starter = useStarter();
   const { prefs: recipePrefs, result: recipeResult } = useRecipe();
-  const [prefs, setPrefs] = usePersistentState('easydough.levain.v1', parseLevainPrefs);
+  const [prefs, setPrefs] = usePersistentState(LEVAIN_STORAGE_KEY, parseLevainPrefs);
   const [notice, setNotice] = useState<string | null>(null);
   const set = <K extends keyof LevainPrefs>(k: K, v: LevainPrefs[K]) => setPrefs((p) => ({ ...p, [k]: v }));
 
-  const jar = prefs.useMyStarter ? starter.current : null;
-  const jarWeight = jar ? weightOf(jar) : 0;
-  const starterHydration = jar ? hydrationOf(jar) : prefs.manualHydration;
-
-  const inputIssues: Issue[] = [];
-  let seed = INVALID;
-  if (!isValidAmount(prefs.seed)) {
-    inputIssues.push({ level: 'error', field: 'seed', message: 'Enter how much starter you take.' });
-  } else if (jar) {
-    if (prefs.seed > jarWeight + TOLERANCE) {
-      inputIssues.push({ level: 'error', field: 'seed', message: `You only have ${grams(jarWeight)} of starter.` });
-    } else {
-      seed = takePortion(jar, Math.min(prefs.seed, jarWeight)).portion;
-    }
-  } else if (!isValidHydration(prefs.manualHydration)) {
-    inputIssues.push({ level: 'error', field: 'seed', message: `Starter hydration must be 0–${MAX_HYDRATION}%.` });
-  } else {
-    seed = compositionFromWeight(prefs.seed, prefs.manualHydration);
-  }
-
   const recipe = recipeResult.recipe;
   const synced = prefs.syncWithRecipe;
-  if (synced && !recipe) {
-    inputIssues.push({
-      level: 'error',
-      message: 'Something is wrong in the Recipe tab. Fix it there, or untick “Same as recipe”.',
-    });
-  }
-  const forDough = synced ? (recipe?.levain.weight ?? NaN) : prefs.forDough;
-  const levainHydration = synced ? recipePrefs.levainHydration : prefs.levainHydration;
-
-  const flourRatio = prefs.useFlourRatio ? prefs.flourRatio : null;
-  const result = planLevain({ seed, levainHydration, forDough, backToFridge: prefs.backToFridge, flourRatio });
-  const issues = inputIssues.length > 0 ? inputIssues : result.issues;
-  const plan = inputIssues.length > 0 ? null : result.plan;
+  const { jar, jarWeight, starterHydration, forDough, levainHydration, flourRatio, issues, plan } = computeLevain(
+    prefs,
+    starter.current,
+    recipe,
+    recipePrefs.levainHydration,
+  );
   const errorFields = new Set(issues.filter((i) => i.level === 'error').map((i) => i.field));
 
   return (
